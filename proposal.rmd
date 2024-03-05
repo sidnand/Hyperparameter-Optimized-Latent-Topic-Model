@@ -1,0 +1,131 @@
+---
+title: "Project Proposal: Latent Topic Modelling for Financial News"
+author: "Siddharth Nand"
+output: 
+    pdf_document:
+        latex_engine: xelatex
+        toc: false
+        number_sections: false
+        fig_caption: true
+        fig_height: 5
+        fig_width: 7
+        highlight: tango
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(stringr)
+
+setwd("/Users/siddharthnand/Library/CloudStorage/OneDrive-UBC/Undergrad Courses/W2023/STAT 477C Special Topics in Statistics - BAYESIAN STATS/Project")
+```
+
+# Introduction
+
+In this project, I propose a latent topic model to identify the underlying themes in a
+collection of financial news articles. The goal is to develop a model that given a news article/news heading, can identify
+the probability of the article belonging to each of the predefined categories.
+
+**Team:** Individual
+
+**Project Theme:** Topics models
+
+**Repo Link:** [https://github.com/sidnand/Topic-Modelling-Financial-News](https://github.com/sidnand/Topic-Modelling-Financial-News)
+
+# Potential Approaches to the Problem
+
+I want to model this problem using a variation of LDA, but for supervised learning. For each label $y_i$, the prior distibution of each would be uniform, so $\mathbb{P}(y_i) = \frac{1}{k}$, where $k$ is the total number of labels. The posterior would be $\mathbb{P}(y_i | x_1, \ldots, x_n)$, where $x_1, \ldots, x_n$ are the $n$ words in a document. Then for updating the posterior, for each word in the document, I'd update the probability of each label based on the observation.
+If the word belongs to a document with label $y_i$ increase the probability of $y_i$ linearly by the number of documents with label $y_i$ that contain the word.
+
+I would also need to do a lot of pre-processing of the data, such as removing unnessary words. I also need to structure the data such that each column is a label, a row is a word and the value at word $i$ and label $j$ is the proportion of number of times word $i$ appears in documents with label $j$. If a word does not appear in a document with label $j$, then the value will not be 0 due to Cramwell's rule, but will be a small number.
+
+# Datasets
+
+```{r, include=FALSE}
+mod_apte_test <- read_csv("./data/R-21578/ModApte_test.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_apte_train <- read_csv("./data/R-21578/ModApte_train.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_apte_unused <- read_csv("./data/R-21578/ModApte_unused.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_hayes_test <- read_csv("./data/R-21578/ModHayes_test.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_hayes_train <- read_csv("./data/R-21578/ModHayes_train.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_lewis_test <- read_csv("./data/R-21578/ModLewis_test.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_lewis_train <- read_csv("./data/R-21578/ModLewis_train.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+mod_lewis_unused <- read_csv("./data/R-21578/ModLewis_unused.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "topics") %>%
+  drop_na()
+
+reuters_21578 <- bind_rows(
+  mod_apte_test,
+  mod_apte_train,
+  mod_apte_unused,
+  mod_hayes_test,
+  mod_hayes_train,
+  mod_lewis_test,
+  mod_lewis_train,
+  mod_lewis_unused
+)
+```
+
+```{r, include=FALSE}
+sentiment <- read_csv("./data/sentiment/sentiment.csv",
+  col_types = cols(.default = "c")
+) %>%
+  select("text", "sentiment") %>%
+  drop_na()
+```
+
+I have two proposed datasets. One is the Reuters-21578 dataset, which is a collection of 21,578 news articles, which labelled by predefined topics. The second is a collection of 211 financial news headings, each labeled by a number from 0 to 2, where 0 means bad news, 1 is neutral news and 2 is good.
+
+**Reuters-21578 Dataset:**
+
+```{r, echo=FALSE}
+reuters_21578 %>%
+  mutate(text = str_trunc(text, 50)) %>%
+  head()
+```
+
+**News Headings:**
+
+```{r, echo=FALSE}
+set.seed(2)
+sentiment %>%
+  mutate(text = iconv(text, to = "UTF-8", sub = "byte")) %>%
+  mutate(text = str_trunc(text, 70)) %>%
+  sample_n(6)
+```
