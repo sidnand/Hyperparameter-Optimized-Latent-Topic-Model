@@ -1,6 +1,7 @@
 ---
 title: "Project Proposal: Latent Topic Modelling for Financial News"
 author: "Siddharth Nand"
+geometry: "left=0.5in,right=0.5in,top=0.1in, bottom=0.1in"
 output: 
     pdf_document:
         latex_engine: xelatex
@@ -34,7 +35,7 @@ the probability of the article belonging to each of the predefined categories.
 
 # Potential Approaches to the Problem
 
-I want to model this problem using a variation of LDA, but for supervised learning. For each label $y_i$, the prior distibution of each would be uniform, so $\mathbb{P}(y_i) = \frac{1}{k}$, where $k$ is the total number of labels. The posterior would be $\mathbb{P}(y_i | x_1, \ldots, x_n)$, where $x_1, \ldots, x_n$ are the $n$ words in a document. Then for updating the posterior, for each word in the document, I'd update the probability of each label based on the observation.
+I want to model this problem using a variation of Latent Dirichlet Allocation (LDA), but for supervised learning. For each label $y_i$, the prior distibution of each would be uniform, so $\mathbb{P}(y_i) = \frac{1}{k}$, where $k$ is the total number of labels. The posterior would be $\mathbb{P}(y_i | x_1, \ldots, x_n)$, where $x_1, \ldots, x_n$ are the $n$ words in a document. Then for updating the posterior, for each word in the document, I'd update the probability of each label based on the observation.
 If the word belongs to a document with label $y_i$ increase the probability of $y_i$ linearly by the number of documents with label $y_i$ that contain the word.
 
 I would also need to do a lot of pre-processing of the data, such as removing unnessary words. I also need to structure the data such that each column is a label, a row is a word and the value at word $i$ and label $j$ is the proportion of number of times word $i$ appears in documents with label $j$. If a word does not appear in a document with label $j$, then the value will not be 0 due to Cramwell's rule, but will be a small number.
