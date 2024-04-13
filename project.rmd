@@ -48,19 +48,21 @@ Let $m$ be the number of topics (labels) and let $n$ be the number of words in t
 
 **Prior:** Let $y_i \sim Uniform[0, k]$ be a label. So initally, we assume that each word is equally likely to belong to any of the $m$ topics.
 
-**Likelihood:** The likelihood function $\mathbb{P}(X | y_k)$ models the probability that a word $i$ belongs to label $j$ given the observed data matrix $X$. For us to make a clear relation between labels and words, we need a way to say that "the more frequently we observe more word $i$ with label $j$, then there is a higher probability that word $i$ should be labeled $j$." To acknowledge this relationship, we will assume that as we see more words with label $j$, the probability that word $i$ belongs to label $j$ increases linearly by some tuning parameter $\alpha$, which controls the rate of increase in label probabilities based on word frequencies. We will also let $\theta_{i, k}$ be the count of word $i$ in the $k^{th}$ topic, this is the parameter we want to infer.
+**Likelihood:** The likelihood function $\mathbb{P}(X | y_k)$ models the probability of observing the word-label matrix $X$ given a specific topic $y_k$.  To establish a clear relationship between labels and words, we assume that the more frequently we see word $i$ with label $j$, the higher the probability that word $i$ should have that label. We model this relationship using a continuous parameter $\theta_{i,k}$. This parameter represents the 'intensity' or 'weight' of word $i$ within topic $k$. A higher value of $\theta_{i,k}$ suggests a stronger association between the word and the topic.  We control the influence of word frequencies on topic assignment with a tuning parameter $\alpha$.
 
-The likelihood function can be expressed as:
+**Change from Discrete Theta:** Initially, we considered using a discrete $\theta_{i,k}$ to directly represent the count of word $i$ within topic $k$. However, this type of discrete parameter in the likelihood function poses challenges for standard inference methods in Stan, which are primarily designed for continuous probability distributions. By using a continuous $\theta_{i,k}$, we make the model more tractable for Stan's computational framework.
 
-$$\mathbb{P}(X | y_k) = \prod_{i=1}^{n} \left(1 + \alpha \cdot \sum_{j=1}^{d} X_{i,j}\right)^{\theta_{i,k}}$$
+$$\mathbb{P}(X | y_k) = \prod_{i=1}^{n} e^{(\alpha \cdot \theta_{i,k} \cdot \sum_{j=1}^{d} X_{i,j})}$$
 
-Step-by-step explanation of the likelihood function:
+**Step-by-step explanation of the likelihood function:**
 
-- For each word $i$, we calculate a factor that represents the likelihood of that word belonging to label $j$.
-- This factor is proportional to the count of times word $i$ appears in documents with label $j$, stored in $X_{i,j}$. This is adjusted by the tuning parameter $\alpha$.
-- By multiplying these factors for all words in the vocabulary, we obtain the likelihood of observing the entire word-label matrix $X$ given the topic $y_k$.
+1. **For each word $i$:** We calculate a factor that represents how strongly that word is associated with a specific topic $y_k$.
+2. **Weighting by frequency:** This factor is influenced by how frequently word $i$ appears in documents with label $j$ (stored in $X_{i,j}$) .  The more frequent the word within the label, the stronger its association with the topic. We control this influence using the tuning parameter $\alpha$.
+3. **Combining across the vocabulary:**  We multiply these individual word-topic association factors for all words in the vocabulary.  This gives us the overall likelihood of observing the entire word-label matrix $X$ given a particular topic $y_k$.
 
-This likelihood function allows us to model the relationship between words and labels, considering both the observed word-label counts and the influence of word frequencies on label probabilities. By maximizing this likelihood function and solving for $\theta_{i,k}$ over all topics $y_k$, we can infer the most likely topics for the observed word-label matrix $X$. Additionally, the model accounts for unseen words by ensuring that the probability remains non-zero when $X_{i, j} = 0$, providing robustness to unseen data.
+**Key Point:**  Since we use a continuous $\theta$, we're not directly calculating the probability of a word belonging to a label. Instead, we compute a score that indicates how closely a word is related to a particular topic.
+
+This likelihood function allows us to model the relationship between words and topics, considering both the observed word-label counts and the influence of word frequencies on topic associations. By maximizing this likelihood function and solving for $\theta_{i,k}$ over all topics $y_k$, we can infer the most prominent topic associations for the observed word-label matrix $X$. Additionally, the model accounts for unseen words by ensuring that the likelihood remains non-zero when $X_{i, j} = 0$, providing robustness to unseen data. 
 
 ## Assumptions
 
