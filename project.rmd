@@ -1,8 +1,8 @@
 ---
-title: "Project Title"
+title: "Decoding Hidden Themes: A Hyperparameter-Optimized Latent Topic Model"
 author: "Siddharth Nand"
 bibliography: references.bib
-output: 
+output:
   pdf_document:
     latex_engine: xelatex
     toc: false
@@ -10,18 +10,30 @@ output:
     fig_caption: true
     fig_height: 5
     fig_width: 7
-    highlight: tango
+    highlight: haddock
+header-includes:
+  - \usepackage{algorithm2e}
 ---
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(knitr)
 library(stringr)
+library(rstan)
+library(tidytext)
+library(textdata)
+library(SnowballC)
+library(tm)
+library(caret)
 
 setwd("/Users/siddharthnand/Library/CloudStorage/OneDrive-UBC/Undergrad Courses/W2023/STAT 477C Special Topics in Statistics - BAYESIAN STATS/Project")
 ```
 
 # Introduction
-Latent topic modelling is an unsupervised tool for uncovering the underlying themes in a collection of documents. In this project, I propose a method of Latent Topic Modeling for supervised learning. The goal is to develop a model that given an article, can identify the probability of the article belonging to each of the predefined themes.
+Latent topic modeling is a powerful unsupervised machine learning technique for discovering hidden thematic structures within text corpora. These models aim to represent documents as mixtures of topics, where each topic is a probability distribution over words. This project introduces a novel latent topic modeling approach that incorporates the following advancements:
+
+* **Custom Likelihood Function:** A specifically designed likelihood function is used to model the probability of observing words within documents, emphasizing the relationship between word frequencies and topic assignments.
+* **Flexible Parameterization:** The model incorporates hyperparameters for sparsity control (Dirichlet concentration parameter) and word frequency influence. This allows for fine-tuning the topic discovery process.
+* **Hyperparameter Optimization:**  Hyperparameters are carefully tuned to maximize the quality and coherence of the discovered topics.
 
 # Literature Review
 
@@ -38,48 +50,178 @@ Latent Dirichlet Allocation (LDA) is a widely used probabilistic generative mode
 
 # Motivation
 
-# Methodology
-
 ## Data Definitions
 
-Let $m$ be the number of topics (labels) and let $n$ be the number of words in the vocabulary. Let $X$ be the word-label matrix of size $n \times d$ where $x_{i, j}$ is the number of times word $i$ appears in documents with label $j$. This is our observed data matrix. Finally, we will let $y_k$ be the $k^{th}$ topic. These are the latent variables we want to infer. Also note that $k = m$ because we have $m$ topics that we want to infer.
+* **Word-Label Matrix ($X$):** This matrix represents the observed data. Each entry $X_{i,j}$ indicates the number of times word $i$ appears in documents labeled as topic $j$. The value of $X_{i,j}$ is the count of word $i$ in documents labeled as topic $j$.
+
+* **Notations:**
+  * **m:** Number of topics
+  * **n:** Number of words in the vocabulary
+  * **d:** Number of documents
 
 ## Model
 
-**Prior:** Let $y_i \sim Uniform[0, k]$ be a label. So initally, we assume that each word is equally likely to belong to any of the $m$ topics.
+### Prior Distribution
 
-**Likelihood:** The likelihood function $\mathbb{P}(X | y_k)$ models the probability of observing the word-label matrix $X$ given a specific topic $y_k$.  To establish a clear relationship between labels and words, we assume that the more frequently we see word $i$ with label $j$, the higher the probability that word $i$ should have that label. We model this relationship using a continuous parameter $\theta_{i,k}$. This parameter represents the 'intensity' or 'weight' of word $i$ within topic $k$. A higher value of $\theta_{i,k}$ suggests a stronger association between the word and the topic.  We control the influence of word frequencies on topic assignment with a tuning parameter $\alpha$.
+The topic distribution for each word $i$ is modeled using a Dirichlet distribution, $\theta_i \sim Dirichlet(\textbf{a})$.  This is a natural choice for probability distributions over topics, ensuring that topic probabilities for each word sum to 1.The Dirichlet concentration parameter $\textbf{a}$ controls how sparse the topic distributions are. Lower values of $\textbf{a}$ encourage words to concentrate their probability mass on fewer topics, leading to more focused topic representations.
 
-**Change from Discrete Theta:** Initially, we considered using a discrete $\theta_{i,k}$ to directly represent the count of word $i$ within topic $k$. However, this type of discrete parameter in the likelihood function poses challenges for standard inference methods in Stan, which are primarily designed for continuous probability distributions. By using a continuous $\theta_{i,k}$, we make the model more tractable for Stan's computational framework.
+### Likelihood Function
 
-$$\mathbb{P}(X | y_k) = \prod_{i=1}^{n} e^{(\alpha \cdot \theta_{i,k} \cdot \sum_{j=1}^{d} X_{i,j})}$$
+The likelihood function models how likely it is to observe our word-label matrix $X$, given a particular set of topic distributions $\theta$. The core assumption is that words that appear frequently within a topic are more likely to be strongly associated with that topic. We define the likelihood function as follows:
 
-**Step-by-step explanation of the likelihood function:**
+$$\mathbb{P}(X | \theta) = \prod_{i=1}^n \left (\frac{\theta_{i,k} + \beta}{\sum_{k'=1}^{m} \theta_{i,k'} + \beta⋅m} \right)^{\alpha⋅\sum_{j=1}^{d} X_{i,j}}$$
 
-1. **For each word $i$:** We calculate a factor that represents how strongly that word is associated with a specific topic $y_k$.
-2. **Weighting by frequency:** This factor is influenced by how frequently word $i$ appears in documents with label $j$ (stored in $X_{i,j}$) .  The more frequent the word within the label, the stronger its association with the topic. We control this influence using the tuning parameter $\alpha$.
-3. **Combining across the vocabulary:**  We multiply these individual word-topic association factors for all words in the vocabulary.  This gives us the overall likelihood of observing the entire word-label matrix $X$ given a particular topic $y_k$.
+The log-likelihood function is used for computational efficiency and numerical stability:
 
-**Key Point:**  Since we use a continuous $\theta$, we're not directly calculating the probability of a word belonging to a label. Instead, we compute a score that indicates how closely a word is related to a particular topic.
+$$\log \mathbb{P}(X | \theta) = \sum_{i=1}^n \left (\alpha⋅\sum_{j=1}^{d} X_{i,j} \right) \log \left (\frac{\theta_{i,k} + \beta}{\sum_{k'=1}^{m} \theta_{i,k'} + \beta⋅m} \right)$$
 
-This likelihood function allows us to model the relationship between words and topics, considering both the observed word-label counts and the influence of word frequencies on topic associations. By maximizing this likelihood function and solving for $\theta_{i,k}$ over all topics $y_k$, we can infer the most prominent topic associations for the observed word-label matrix $X$. Additionally, the model accounts for unseen words by ensuring that the likelihood remains non-zero when $X_{i, j} = 0$, providing robustness to unseen data. 
+* **Influence Parameter ($\alpha$):** This parameter scales the importance of word frequencies within topics. Higher values of $\alpha$ increase the association between topic $k$ and word $i$ if the word appears frequently in documents labeled with that topic.
+
+* **Smoothing Parameter ($\beta$):** This parameter prevents zero probabilities and ensures robustness, particularly for words that might be rarely observed in the corpus.
+
+### Inference
+
+The model is implemented in Stan, a probabilistic programming language that allows us to express complex probabilistic models. Stan's Hamiltonian Monte Carlo (HMC) sampler is used to efficiently explore the posterior distribution of our model parameters, enabling robust inference of the latent topic structure.
+
+### Hyperparameter Optimization
+
+Hyperparameters ($\textbf{a}$, $\alpha$, $\beta$) are carefully tuned to improve the quality and coherence of the discovered topics. Techniques such as grid search or Bayesian optimization can be used to explore the hyperparameter space.
 
 ## Assumptions
 
-In the likelihood function described, several assumptions are made to facilitate the modeling process. Let's outline these assumptions:
-
-1. **Word Independence within Documents**: Although the likelihood function considers the counts of individual words within documents, it assumes that the occurrence of each word in the document is independent of the occurrence of other words. This assumption simplifies the modeling process and allows for efficient computation, but it might not hold true in all cases, especially for documents with strong contextual dependencies between words.
-
-2. **Linear Relationship between Word Counts and Label Probabilities**: The likelihood function assumes a linear relationship between the counts of words in documents with specific labels and the probabilities of those labels. This implies that as the count of a word increases in documents with a certain label, the probability of that label being assigned to a new document containing that word also increases linearly. While this assumption provides a straightforward mechanism for updating label probabilities based on observed word frequencies, it might oversimplify the true relationship between word occurrences and label assignments.
-
-3. **Uniform Prior Distribution of Labels**: The model assumes a uniform prior distribution of labels, meaning that each label has an equal initial probability of being assigned to a document in the absence of any observed evidence. While this simplifies the model initialization, it might not accurately reflect the true distribution of labels in the dataset. In practice, label priors could be estimated from the data or incorporated based on domain knowledge.
-
-4. **Fixed Tuning Parameter $\alpha$**: The likelihood function includes a tuning parameter $\alpha$ that controls the rate of increase in label probabilities based on word frequencies. This parameter is fixed and assumed to be constant across all words and labels. However, in reality, the optimal value of $\alpha$ might vary depending on the characteristics of the dataset and the specific task at hand. 
-
 # Case Study
+
+The entire `Stan` code for this model and all the preprocessing code is provided in the appendix section. Below I will provide a pseudo-code for the model.
+
+## Data Preprocessing
+
+## Case 1: $\alpha = 0$, $\beta = 0$
+
+## Case 2: $\alpha = 1$, $\beta = 0$
+
+## Case 3: $\alpha = 1$, $\beta = 1$
+
+## Case 3: $\alpha = 0.5$, $\beta = 0.5$
+
+```{r, handle_data, echo=FALSE}
+# Load the data
+data <- read_csv("data/sentiment/sentiment.csv", show_col_types = FALSE) %>%
+  select(text) %>%
+  mutate(document_id = row_number()) %>%
+  sample_n(10)
+
+# Clean the data
+data <- data %>%
+  mutate(text = tolower(text)) %>%
+  mutate(text = removeWords(text, stopwords("en"))) %>%
+  mutate(text = removePunctuation(text,
+    reserve_intra_word_contractions = TRUE,
+    preserve_intra_word_dashes = TRUE
+  )) %>%
+  mutate(text = removeNumbers(text)) %>%
+  mutate(text = str_replace_all(text, "�", "")) %>%
+  mutate(text = str_replace_all(text, "\\s+", " ")) %>%
+  mutate(text = str_trim(text))
+
+# output the cleaned data to a text file
+write_csv(data, "./cleaned_data.csv")
+
+# Tokenization and stemming
+data <- data %>%
+  unnest_tokens(word, text) %>%
+  mutate(word = wordStem(word))
+
+# Create the word-document matrix with words as columns and documents as rows
+X <- data %>%
+  count(document_id, word) %>%
+  cast_dtm(document_id, word, n) %>%
+  as.matrix()
+```
+
+```{r, model, echo=FALSE}
+model <- stan_model("model.stan")
+```
+
+```{r, inference, echo=FALSE, results='hide'}
+stan_data <- list(
+  n = ncol(X),
+  d = nrow(X),
+  X = X,
+  m = 3,
+  a = rep(0.5, 3),
+  alpha = 1,
+  beta = 0.5
+)
+
+fit <- sampling(model, data = stan_data, iter = 1000)
+```
+
+## Results
+
+```{r, topic_word_dist, echo=FALSE}
+theta <- extract(fit, "theta")$theta
+theta_avg <- apply(theta, c(2, 3), mean)
+
+topic_word_dist <- data.frame(
+  word = colnames(X),
+  topic = rep(seq_len(ncol(theta_avg)), each = nrow(theta_avg)),
+  probability = c(theta_avg)
+)
+
+# order topic_word_dist by probability
+# topic_word_dist %>%
+#   arrange(desc(probability))
+
+# plot a graph of the top words for each topic based on probability, with the words ordered by probability
+top_words <- topic_word_dist %>%
+  group_by(topic) %>%
+  top_n(10, probability) %>%
+  arrange(topic, desc(probability))
+
+ggplot(
+  top_words,
+  aes(
+    x = reorder(word, probability),
+    y = probability,
+    fill = factor(topic)
+  )
+) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05)) +
+  labs(
+    title = "Top 10 Words for Each Topic",
+    x = "Word",
+    y = "Probability",
+    fill = "Topic"
+  ) +
+  theme_light() +
+  facet_wrap(~topic, ncol = 1, scales = "free_y") +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_text(),
+    strip.background = element_blank(),
+    strip.text = element_blank(),
+  ) +
+  scale_fill_brewer(palette = "Set2")
+```
 
 # Discussion & Future Work
 
 # Conclusion
+
+# Appendix
+
+## Stan Model
+
+```{r, include=FALSE}
+stan_code <- readLines("model.stan")
+```
+
+```{r, echo=FALSE}
+cat(stan_code, sep = "\n")
+```
+
+## Case Study Data Preprocessing
 
 # References
