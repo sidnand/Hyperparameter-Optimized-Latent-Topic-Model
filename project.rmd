@@ -39,6 +39,8 @@ setwd("/Users/siddharthnand/Library/CloudStorage/OneDrive-UBC/Undergrad Courses/
 # Introduction
 Topic modeling uncovers hidden thematic structures within a set of documents. It represents documents as mixtures of topics, where each topic is a probability distribution over words. This project introduces a novel topic modeling approach with a custom likelihood function and flexible parameterization. Users can adjust how word frequencies influence topics and the model's robustness to rare words.
 
+The GitHub repository for this project can be found at [https://github.com/sidnand/Hyperparameter-Optimized-Latent-Topic-Model](https://github.com/sidnand/Hyperparameter-Optimized-Latent-Topic-Model).
+
 # Literature Review
 The origins of topic models lie in Latent Dirichlet Allocation (LDA) [@blei2003latent], a seminal work that introduced the probabilistic framework for unsupervised discovery of latent thematic structures. LDA represents documents as mixtures of probability distributions over words, where these distributions correspond to topics.  Through Bayesian inference techniques, LDA estimates both the topic-word distributions (defining the vocabulary associated with each topic) and the topic proportions within each document (indicating how strongly a document relates to different topics). The Bayesian approach provides a natural way to incorporate prior beliefs, handle uncertainty, and prevent overfitting. 
 
