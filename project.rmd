@@ -2,6 +2,7 @@
 title: "A Hyperparameter-Optimized Latent Topic Model"
 author: "Siddharth Nand"
 bibliography: references.bib
+geometry: "left=0.9in,right=0.9in,top=.9in,bottom=.9in"
 output:
   pdf_document:
     latex_engine: xelatex
@@ -36,39 +37,30 @@ setwd("/Users/siddharthnand/Library/CloudStorage/OneDrive-UBC/Undergrad Courses/
 ```
 
 # Introduction
-Topic modeling uncovers hidden thematic structures within text corpora. It represents documents as mixtures of topics, where each topic is a probability distribution over words. This project introduces a novel topic modeling approach with a custom likelihood function and flexible parameterization. Users can adjust how word frequencies influence topics and the model's robustness to rare words.
+Topic modeling uncovers hidden thematic structures within a set of documents. It represents documents as mixtures of topics, where each topic is a probability distribution over words. This project introduces a novel topic modeling approach with a custom likelihood function and flexible parameterization. Users can adjust how word frequencies influence topics and the model's robustness to rare words.
 
 # Literature Review
+The origins of topic models lie in Latent Dirichlet Allocation (LDA) [@blei2003latent], a seminal work that introduced the probabilistic framework for unsupervised discovery of latent thematic structures. LDA represents documents as mixtures of probability distributions over words, where these distributions correspond to topics.  Through Bayesian inference techniques, LDA estimates both the topic-word distributions (defining the vocabulary associated with each topic) and the topic proportions within each document (indicating how strongly a document relates to different topics). The Bayesian approach provides a natural way to incorporate prior beliefs, handle uncertainty, and prevent overfitting. 
 
-**Latent Dirichlet Allocation**
+Building upon LDA's foundation, subsequent research has greatly enhanced the flexibility and capabilities of Bayesian topic modeling.  Non-parametric models like the Hierarchical Dirichlet Process (HDP) [@teh2004sharing] address the constraint of pre-specifying the number of topics. HDP infers an optimal number of topics directly from the data, allowing models to adapt to the inherent complexity of the corpus.  Further advancements have focused on capturing the relationships between topics, such as the Correlated Topic Model (CTM) [@blei2006correlated], which relaxes LDA's assumption of topic independence and allows for richer representations.  For corpora where the content evolves over time, Dynamic Topic Models (DTM) [@blei2006dynamic] introduce a temporal dimension, modeling the evolution of topics and their changing word associations.
 
-Latent Dirichlet Allocation (LDA) is a widely-used model for uncovering thematic structure in documents. It treats each document as a mix of topics, with each topic defined by a distribution over words. LDA's hierarchical Bayesian framework, using Dirichlet priors, offers flexibility in modeling. It has applications in information retrieval, document clustering, and topic discovery.
-
-**Latent Semantic Analysis**
-
-Latent Semantic Analysis (LSA) captures semantic relationships by representing documents and terms in a high-dimensional space and then reducing it. Utilizing singular value decomposition (SVD), LSA identifies similarities between documents and terms. While effective, it has limitations in handling polysemy and synonymy.
-
-**Probabilistic Latent Semantic Analysis**
-
-Probabilistic Latent Semantic Analysis (PLSA) extends LSA by adding a probabilistic framework. It models document generation as a process involving latent topics and observed words. PLSA learns topic structures iteratively, offering richer insights into document corpora despite limitations like requiring a predetermined number of topics.
+The power and adaptability of Bayesian topic models have led to their widespread adoption across a multitude of domains. They are invaluable tools in information retrieval and text classification [@blei2003latent], sentiment analysis and opinion mining [@titov2008modeling], social network analysis [@chang2009relational], and the exploration of scientific literature [@hall2008studying].  Bayesian topic modeling remains an active and vibrant research area, with ongoing developments in areas such as deep generative models, topic model interpretability, and applications to new data modalities.
 
 # Problem Formulation
 
 ## Data Definitions
 
-Our analysis begins with a word-label matrix $X$ which represents the observed word frequencies.  Each entry $X_{i,j}$  denotes the count of occurrences of word $i$ within documents labeled as belonging to topic $j$. For clarity, we'll use the following notations: $m$ represents the number of topics, $n$  the size of the vocabulary, and $d$ the total number of documents within the corpus.
+Our analysis begins with a word-document matrix $X$ which represents the observed word frequencies. Each entry $X_{i,j}$ denotes the number of occurrences for word $i$ within each document $j$. For clarity, we'll use the following notations: $m$ represents the number of topics, $n$ the size of the vocabulary (number of words), and $d$ the total number of documents within the corpus.
 
 ## Model
 
-Here's the probabilistic model used to infer the latent topics from the word-label matrix $X$.
-
 ### Prior Distribution
 
-The topic distribution for each word $i$ is modeled using a Dirichlet distribution, $\theta_i \sim Dirichlet(\textbf{a})$. This distribution is ideally suited for topic modeling because it represents probability distributions over categories (like our topics). It ensures that topic probabilities for each word sum to 1 and allows words to have varying probabilities of belonging to multiple topics - reflecting the nuanced nature of language. The Dirichlet concentration parameter, $\textbf{a}$ (a vector with one value per topic), controls the sparsity of topic distributions. Higher values of $\textbf{a}$ lead to more even probability distributions across topics, resulting in broader topics. Conversely, lower values of $\textbf{a}$ encourage words to concentrate their probability mass on a smaller number of topics, yielding more distinct and focused thematic groups. This control over sparsity allows us to tailor the topic modeling process to different needs within a text analysis project. 
+The topic distribution for each word $i$ is modeled using a Dirichlet distribution, $\theta_i \sim Dirichlet(\textbf{a})$. This distribution is ideal for topic modeling because it represents probability distributions over categories (like our topics). It ensures that topic probabilities for each word sum to 1 and allows words to have varying probabilities of belonging to multiple topics. The Dirichlet concentration parameter, $\textbf{a}$ (a vector with one value per topic), controls the sparsity of topic distributions. Higher values of $\textbf{a}$ lead to more even probability distributions across topics, resulting in broader topics. Conversely, lower values of $\textbf{a}$ encourage words to concentrate their probability mass on a smaller number of topics, yielding more distinct and focused thematic groups.
 
 ### Likelihood Function
 
-The likelihood function models how likely it is to observe our word-label matrix $X$, given a particular set of topic distributions $\theta$. $\theta$ is a matrix where each row corresponds to a word and each column corresponds to a topic. The core assumption is that words that appear frequently within a topic are more likely to be strongly associated with that topic. We define the likelihood function as follows:
+The likelihood function models how likely it is to observe our word-document matrix $X$, given a particular set of topic distributions $\theta$. $\theta$ is a matrix where each row corresponds to a word and each column corresponds to a topic. The core assumption is that words that appear frequently within a topic are more likely to be strongly associated with that topic. We define the likelihood function as follows:
 
 $$\mathbb{P}(X | \theta) = \prod_{i=1}^n \left (\frac{\theta_{i,k} + \beta}{\sum_{k'=1}^{m} \theta_{i,k'} + \beta⋅m} \right)^{\alpha⋅\sum_{j=1}^{d} X_{i,j}}$$
 
@@ -76,11 +68,11 @@ The log-likelihood function is used for computational efficiency and numerical s
 
 $$\log \mathbb{P}(X | \theta) = \sum_{i=1}^n \left (\alpha⋅\sum_{j=1}^{d} X_{i,j} \right) \log \left (\frac{\theta_{i,k} + \beta}{\sum_{k'=1}^{m} \theta_{i,k'} + \beta⋅m} \right)$$
 
-The model includes two key parameters that control how word frequencies and topic assignments are related. The influence parameter ($\alpha$)  scales how strongly a word's frequency within documents labeled with a topic affects its association with that topic.  The smoothing parameter ($\beta$) adds a small amount to word counts, preventing zero probabilities and making the model more robust, especially for less frequent words.
+The model includes two key parameters that control how word frequencies and topic assignments are related. The influence parameter ($\alpha$) controls the influence of word frequencies on the calculation of the likelihood. The smoothing parameter ($\beta$) adds a small amount to word counts, preventing zero probabilities and making the model more robust, especially for less frequent words.
 
 # Case Study
 
-We'll apply our hyperparameter-optimized latent topic model to a real-world dataset, uncovering hidden thematic structures in a collection of financial news headlines. We'll compare our model to LDA and examine differences. The dataset comprises financial news headlines, and our goal is to organize them into coherent topics reflecting underlying themes. By fitting our model and plotting word-topic and document-topic distributions, we'll interpret the discovered themes based on top words in each topic. The `Stan` code and data preprocessing details are provided in the appendix.
+We'll apply our hyperparameter-optimized latent topic model to a real-world dataset, uncovering hidden thematic structures in a collection of financial news headlines. We'll begin with a simple document classifier, then we'll compare our model to LDA and examine the differences. Finally we will do inference diagnostics to see the validity of our inference. Our goal is to organize the news headlines into coherent topics reflecting underlying themes. The `Stan` code for the model and data preprocessing details are provided in the appendix.
 
 ## Data Preprocessing
 
@@ -129,7 +121,7 @@ X <- token_data %>%
 model <- stan_model("model.stan")
 ```
 
-After preprocessing our data, we create a word-document matrix, with rows representing documents, columns representing unique words, and cells indicating word frequencies in each document. The preprocessing code is provided in the Appendix. Due to computational constraints, we randomly select a subset of 25 documents for analysis in our case study.
+After preprocessing our data, we create a word-document matrix, with rows representing documents, columns representing unique words, and cells indicating word frequencies in each document. Due to computational constraints, we randomly select a subset of 25 documents for analysis in our case study.
 
 ```{r, topic_word_dist, echo=FALSE}
 plt_word_topic <- function(top_words) {
@@ -176,21 +168,49 @@ fit <- sampling(model,
 lda_model <- LDA(X, k = 3, method = "Gibbs", control = list(seed = 123))
 ```
 
-## Comparison with LDA
+## Categorizing Documents
 
-Now we will compare our model to Latent Dirichlet Allocation (LDA) by plotting a word-topic distributions of the top 10 words which are the most probable for each topic. For our model, the hyperparameters $\alpha$ and $\beta$ were set to 0.5 and the Dirichlet concentration parameter $\textbf{a}$ was set to 0.5 for each topic. For LDA, we used the Gibbs sampling method with 3 topics. Figure 1 shows the word-topic distributions for our model, while Figure 2 shows the word-topic distributions for LDA. The y-axis is the probability of a word being in a specific topic. Also note that the words on the x-axis are after the stemming process (were we reduce words to their root form, e.g. "captures, capturing, captured" all become "captur"). The most noticeable difference is that the probability of a word belonging to a topic is more evenly distributed in our model compared to LDA and the value of those probabilities is higher. This is most likely due to the fact that our model only looks at the word frequencies within documents labeled with a topic, while LDA considers the entire corpus. Another difference between our models is the choice of words in each topic. It is expected that both models cluster words into topics in a different way, as they use different likelihood functions.
+An application to topic modeling is to identify similar documents based on their thematic contents. This can be used for document clustering or recommendation systems. Due to $\theta_i$ being a probability distribution over topics for each word, one way we can categorize a document $j$ is if topic $k$ has the most number of highly probable words in a document, then document $j$ is most likely to be about topic $k$. The below table is a subset of the categorizations of the documents into topics. Due to the unsupervised nature of topic modeling, there is no "true" interpretation of the topics. From the below table, there does not seem to be a clear interpretation of the topics that we can infer. The below table is just a subset of the categorizations, so it could be that the full table would provide a clearer interpretation.
 
-```{r, echo=FALSE, fig.cap="Hyperparameter-Optimized Word-Topic Distribution", fig.show='asis', warning=FALSE, fig.align='center', fig.pos='H', fig.width=6}
+```{r, doc_sim, echo=FALSE, warning=FALSE, message=FALSE}
 fit_summary <- summary(fit)
 theta_means <- matrix(fit_summary$summary[, "mean"], nrow = ncol(X), ncol = 3, byrow = TRUE)
 
-dist <- data.frame(
+dist_word <- data.frame(
   term = colnames(X),
   topic = rep(1:3, each = ncol(X)),
   probability = as.vector(theta_means)
 )
 
-top_words <- dist %>%
+prob_words <- dist_word %>%
+  group_by(term) %>%
+  summarise(topic = which.max(probability), probability = max(probability))
+
+dist_document <- token_data %>%
+  left_join(prob_words, by = c("word" = "term")) %>%
+  group_by(document_id, topic) %>%
+  summarise(probability = max(probability)) %>%
+  top_n(1, probability)
+
+topic_table <- dist_document %>%
+  group_by(topic) %>%
+  arrange(desc(probability)) %>%
+  slice(1:3) %>%
+  select(topic, document_id, probability) %>%
+  left_join(clean_data, by = "document_id") %>%
+  rename(document = text) %>%
+  select(topic, document) %>%
+  as.data.frame()
+
+topic_table
+```
+
+## Comparison with LDA
+
+Now we will compare our model to Latent Dirichlet Allocation (LDA) by plotting the word-topic distribution of the top 10 words which are the most probable for each topic. For our model, the hyperparameters $\alpha$ and $\beta$ are set to 0.5 and the Dirichlet concentration parameter $\textbf{a}$ are set to 0.5 for each topic. For LDA, we used the Gibbs sampling method. We will use 3 topics for this comparision. Figure 1 shows the word-topic distribution for our model, while Figure 2 shows the word-topic distributions for LDA. The y-axis is the probability of a word being in a specific topic. Also note that the words on the x-axis are after the stemming process (were we reduce words to their root form, e.g. "captures, capturing, captured" all become "captur"). The most noticeable difference is that the probability of a word belonging to a topic is more evenly distributed in our model compared to LDA and the value of those probabilities are higher. This is most likely due to the fact that our model only looks at the word frequencies within documents labeled with a topic, while LDA considers the entire corpus. Another difference between our models is the choice of words in each topic. Due to the unsupervised nature of topics modelling, there is no objective way to compare the quality of the categorization because both models use different liklihood functions and thus would have different interpretations of the topics.
+
+```{r, echo=FALSE, fig.cap="Hyperparameter-Optimized Word-Topic Distribution", fig.show='asis', warning=FALSE, fig.align='center', fig.pos='H', fig.width=6}
+top_words <- dist_word %>%
   group_by(topic) %>%
   arrange(desc(probability)) %>%
   slice(1:10)
@@ -213,8 +233,8 @@ plt_word_topic(top_words)
 
 ## Effective Sample Size
 
-For our model, the parameter of interest, $\theta$ is a matrix. So for each chain, we will have an effective sample size (ESS) for each parameter in the matrix. We can make a boxplot of the ESS for each parameter in $\theta$ per chain. In Figure 3, we can see that the ESS values are quite high, indicating that the chains have mixed well and that the samples are independent. This is important for the validity of our inference.
-```{r, echo=FALSE, fig.cap="Effective Sample Size per Chain", fig.show='asis', fig.width=3, fig.height=2.5, warning=FALSE, fig.align='center', fig.pos='H'}
+For our model, the parameter of interest, $\theta$ is a matrix. So for each chain, we will have an effective sample size (ESS) for each parameter in the matrix. We can make a boxplot of the ESS for each parameter in $\theta$ per chain. In Figure 3, we can see that the ESS values are quite high, indicating that the chains have mixed well and that the samples are independent. This tells us that our inference is valid.
+```{r, echo=FALSE, fig.cap="Effective Sample Size per Chain", fig.show='asis', fig.width=3, fig.height=2.25, warning=FALSE, fig.align='center', fig.pos='H'}
 # Extract the effective sample size (ESS) values
 ess_values <- fit_summary$summary[, "n_eff"]
 
@@ -255,7 +275,7 @@ ggplot(ess_df, aes(x = factor(chain), y = ess)) +
 
 ## Trace Plots
 
-We can also plot the trace plots for each parameter in $\theta$ per chain. However, due to the large number of parameters, we will only plot the trace plots for the first 3 parameters in $\theta$ for each topic per chain. In Figure 4, we can see that as the number of iterations increases, the parameter values do not show any clear trend, indicating that the chains have mixed well and that the samples are independent. This is important for the validity of our inference.
+We can also plot the trace plots for each parameter in $\theta$ per chain. However, due to the large number of parameters, we will only plot the trace plots for the first 3 parameters in $\theta$ for each topic per chain. In Figure 4, we can see that as the number of iterations increases, the parameter values do not show any clear trend, indicating that the chains have mixed well and that the samples are independent.
 
 ```{r, echo=FALSE, fig.cap="Trace Plots per Chain", fig.show='asis', fig.width=7, fig.height=4, warning=FALSE, fig.align='center', fig.pos='H'}
 pars <- c()
@@ -272,9 +292,11 @@ mcmc_trace(fit, pars = pars) +
 
 # Discussion \& Conclusion
 
-From our case study, we can see that the inference behavior of our model is good, with Figure 3 and 4 showing high effective sample sizes and well-mixed chains. The word-topic distributions in Figure 1 show that our model clusters words into topics differently than LDA, with more evenly distributed probabilities. Due to the unsupervised nature of topic modeling, it is difficult to evaluate the quality of the topics discovered.
+From our case study, we can see that the inference behavior of our model is good, with Figure 3 and 4 showing high effective sample sizes and well-mixed chains. The word-topic distributions in Figure 1 show that our model clusters words into topics differently than LDA, with more evenly distributed probabilities. The categorization of documents into topics in Table 1 does not provide a clear interpretation of the topics, which is expected due to the unsupervised nature of topic modeling.
 
-Our model is not without limitations. The choice of hyperparameters $\alpha$ and $\beta$ can significantly impact the model's performance. The Dirichlet concentration parameter $\textbf{a}$ can also affect the sparsity of the topic distributions because it controls how words are distributed across topics. Because our parameter of interest, $\theta$, is a matrix, the number of parameters can be quite large, which can impact the computational efficiency of the model. Fitting our data matrix of 25 documents took about 5mins as-opposed to LDA which took about a few seconds. Thus our model will be difficult to scale to larger datasets. Another large limitation to our model is our liklihood function. It is quite simple and does not take into account the order of words in a document or the context in which they appear. This can lead to topics that are not coherent or meaningful.
+Our model is not without limitations. The choice of hyperparameters $\alpha$ and $\beta$ can significantly impact the model's performance. The Dirichlet concentration parameter $\textbf{a}$ can also affect the sparsity of the topic distributions because it controls how words are distributed across topics. Because our parameter of interest, $\theta$, is a matrix, the number of parameters can be quite large, which can impact the computational efficiency of the model. Fitting our data matrix of 25 documents took about 5mins as-opposed to LDA which took a few seconds. Thus our model will be difficult to scale to larger datasets. Another large limitation to our model is our liklihood function. It is quite simple and does not take into account the order of words in a document or the context in which they appear. This can lead to topics that are not coherent or meaningful.
+
+Despite these limitations, our model offers a flexible and interpretable approach to topic modeling. By allowing users to adjust the influence of word frequencies and the robustness to rare words, our model can work on any type of textual data. Future work could focus on improving the likelihood function to capture more complex relationships between words and topics, as well as exploring more efficient computational methods to scale the model to larger datasets.
 
 \newpage
 # Appendix
@@ -324,5 +346,4 @@ model {
 
 ```
 
-\newpage
 # References
